@@ -47,18 +47,28 @@
       -webkit-tap-highlight-color: transparent; transform-origin: center;
     }
     .card-title {
-      position: absolute; bottom: calc(100% + var(--title-gap)); left: 50%; transform: translateX(-50%);
+      position: absolute; z-index: 0; bottom: calc(100% + var(--title-gap)); left: 50%;
+      transform: translate(-50%, calc(100% + var(--title-gap) + 12px));
+      opacity: 0; visibility: hidden; pointer-events: none;
       width: max-content; min-height: 34px; margin: 0; display: flex; justify-content: center; align-items: center;
       gap: clamp(6px, 1vw, 12px); white-space: nowrap; direction: ltr;
-      font-weight: 500; font-size: clamp(16px, 1.95vw, 28px); line-height: 1.5;
+      font-weight: 600; font-size: clamp(19px, 2.35vw, 34px); line-height: 1.5;
       text-shadow: 0 2px 12px #000;
     }
-    .card-item:not(.is-active) .card-title { opacity: .80; }
+    .card-item.is-active .card-title {
+      visibility: visible; opacity: 1; transform: translate(-50%, 0);
+      animation: title-reveal 380ms cubic-bezier(.2, .85, .25, 1) 60ms both;
+    }
+    @keyframes title-reveal {
+      0% { opacity: 0; transform: translate(-50%, calc(100% + var(--title-gap) + 12px)); }
+      75% { opacity: 1; transform: translate(-50%, -3px); }
+      100% { opacity: 1; transform: translate(-50%, 0); }
+    }
     .title-en { color: #fff; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 600; }
     .title-fa { color: var(--mint); }
     .title-separator { color: #ffffff65; font-weight: 400; }
     .card-inner {
-      display: block; position: relative; aspect-ratio: 4 / 3; overflow: hidden;
+      display: block; position: relative; z-index: 1; aspect-ratio: 4 / 3; overflow: hidden;
       border-radius: clamp(12px, 1.7vw, 24px); background: #111615;
       border: 1.5px solid #ffffff35; box-shadow: 0 16px 40px #0009;
       transition: border-color .2s, box-shadow .2s;
@@ -75,25 +85,25 @@
       .rotate-hint { display: block; }
       .mode-desc { max-width: 94%; font-size: 18px; min-height: 5.4em; }
       .bottom-tray { padding-bottom: 10px; }
-      .card-title { font-size: clamp(14px, 4.1vw, 22px); gap: 6px; }
+      .card-title { font-size: clamp(16px, 4.7vw, 25px); gap: 6px; }
     }
     @media (orientation: landscape) and (max-height: 500px) {
       .screen-container { padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: max(6px, env(safe-area-inset-bottom)); }
       :root { --title-gap: 16px; }
       .fullscreen-button { top: max(8px, env(safe-area-inset-top)); font-size: 11px; }
-      .card-title { min-height: 28px; font-size: clamp(15px, 2.15vw, 18px); gap: 7px; }
+      .card-title { min-height: 32px; font-size: clamp(18px, 2.5vw, 22px); gap: 7px; }
       .bottom-tray { bottom: max(6px, env(safe-area-inset-bottom)); }
       .mode-desc { max-width: 92%; min-height: 3.6em; font-size: 16px; line-height: 1.7; }
     }
     @media (orientation: landscape) and (max-height: 300px) {
       :root { --title-gap: 12px; }
-      .card-title { min-height: 24px; font-size: 14px; gap: 4px; }
+      .card-title { min-height: 27px; font-size: 17px; gap: 4px; }
       .mode-desc { min-height: 1.8em; font-size: 15px; }
     }
     @media (orientation: landscape) and (max-width: 600px) {
-      .card-title { font-size: 14px; gap: 6px; }
+      .card-title { font-size: 17px; gap: 6px; }
     }
-    @media (prefers-reduced-motion: reduce) { *, *::before { transition: none !important; } }
+    @media (prefers-reduced-motion: reduce) { *, *::before { transition: none !important; animation: none !important; } }
   </style>
 </head>
 <body>
@@ -120,35 +130,35 @@
         filename: 'Recipe Bingo Display.jpg',
         titleEn: 'Recipe',
         titleFa: 'دستور پخت',
-        desc: 'مجموعه دستورهای پخت خودکار متناسب با انواع گوشت، پیتزا، کیک و نان با هوش مصنوعی فر.'
+        desc: 'مجموعه‌ای از دستورهای پخت انواع غذا، شیرینی و نان.'
       },
       {
         id: 'air-fryer',
         filename: 'Air Fryer Bingo Display.png',
         titleEn: 'Air Fryer',
         titleFa: 'هواپز',
-        desc: 'گردش گردبادی هوای داغ ۳۶۰ درجه برای برشته و ترد کردن سیب‌زمینی و غذاها بدون نیاز به روغن.'
+        desc: 'گردش هوای داغ ۳۶۰ درجه برای برشته و ترد کردن غذاها بدون نیاز به روغن.'
       },
       {
         id: 'steam-cooking',
         filename: 'Steam Cooking Bingo Display.png',
         titleEn: 'Steam Cooking',
         titleFa: 'بخارپز',
-        desc: 'تزریق هوشمند بخار خالص برای حفظ ویتامین‌ها، تازگی بافت و پخت سالم انواع غذاها.'
+        desc: 'پخت غذا با بخار آب برای حفظ طعم و تازگی آن.'
       },
       {
         id: 'defrost',
         filename: 'Defrost Bingo Display.jpg',
         titleEn: 'Defrost',
         titleFa: 'یخ‌زدایی',
-        desc: 'یخ‌زدایی ملایم و یکنواخت با توزیع تدریجی حرارت بدون تغییر در بافت و آب‌انداختن مواد غذایی.'
+        desc: 'یخ‌زدایی ملایم و یکنواخت بدون تغییر در بافت مواد غذایی.'
       },
       {
         id: 'multi-step-cooking',
         filename: 'Multi Step Cooking.png',
         titleEn: 'Multi-Step Cooking',
         titleFa: 'پخت چند مرحله‌ای',
-        desc: 'برنامه‌ریزی متوالی مراحل مختلف پخت (ترکیب یخ‌زدایی، بخارپز و گریل نهایی به‌صورت هوشمند).'
+        desc: 'برنامه‌ریزی متوالی مراحل مختلف پخت.'
       },
       {
         id: 'favorite-preset',
@@ -180,6 +190,7 @@
     let current = 0, target = 0, activeIndex = -1, frame = 0, previousTime = 0;
     let stageWidth = 0, cardWidth = 0, drag = null, ignoreClickUntil = 0;
     let lastTap = null, toastTimer, fullscreenBusy = false;
+    let descriptionAnimation = null;
     const cards = [];
 
     MODES.forEach((mode, index) => {
@@ -218,7 +229,12 @@
       });
       if (selected !== activeIndex) {
         activeIndex = selected;
+        if (descriptionAnimation) descriptionAnimation.cancel();
         description.textContent = MODES[selected].desc;
+        descriptionAnimation = reducedMotion.matches ? null : description.animate(
+          [{ opacity: 0 }, { opacity: 1 }],
+          { duration: 320, delay: 180, easing: 'ease-out', fill: 'backwards' }
+        );
       }
     }
     function animate(time) {
