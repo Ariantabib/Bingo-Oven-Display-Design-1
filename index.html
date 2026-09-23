@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#070909">
+  <title>Bingo Display | منوی پخت</title>
+  <link rel="icon" href="data:,">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700&family=Vazirmatn:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root { color-scheme: dark; --mint: #00ffe9; --title-gap: 22px; }
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
+    body { background: #070909; color: #fff; font-family: 'Vazirmatn', sans-serif; overscroll-behavior: none; }
+    button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent; }
+    button:focus-visible, main:focus-visible { outline: 2px solid var(--mint); outline-offset: 6px; }
+    [hidden] { display: none !important; }
+    .screen-container {
+      position: relative; isolation: isolate; width: 100%; height: 100vh; height: 100dvh;
+      overflow: hidden; background: #090908 url('./BackGround.png') center / cover no-repeat;
+      display: flex; flex-direction: column;
+      padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+    }
+    .screen-container::before {
+      content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+      background: linear-gradient(180deg, rgba(0,0,0,.22), rgba(0,0,0,.12) 45%, rgba(0,0,0,.65));
+    }
+    .fullscreen-button {
+      position: absolute; top: max(14px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right));
+      z-index: 30; display: grid; place-items: center; width: 44px; height: 44px;
+      padding: 10px; border: 1px solid #ffffff26; border-radius: 12px;
+      background: #0a0d0d70; cursor: pointer; font-size: 12px; color: #ffffffe0;
+    }
+    .fullscreen-button svg { width: 18px; height: 18px; }
+    .screen-container.is-immersive .fullscreen-button { display: none; }
+    .stage-wrapper {
+      position: absolute; inset: 0 max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left)); outline: none;
+      touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab;
+    }
+    .stage-wrapper.is-dragging { cursor: grabbing; }
+    .carousel-track { position: absolute; inset: 0; perspective: 1200px; pointer-events: none; }
+    .card-item {
+      position: absolute; left: 50%; top: 50%; width: var(--card-width, 42vw);
+      padding: 0; border: 0; background: none; pointer-events: auto; cursor: pointer;
+      -webkit-tap-highlight-color: transparent; transform-origin: center;
+    }
+    .card-title {
+      position: absolute; bottom: calc(100% + var(--title-gap)); left: 50%; transform: translateX(-50%);
+      width: max-content; min-height: 34px; margin: 0; display: flex; justify-content: center; align-items: center;
+      gap: clamp(6px, 1vw, 12px); white-space: nowrap; direction: ltr;
+      font-weight: 500; font-size: clamp(16px, 1.95vw, 28px); line-height: 1.5;
+      text-shadow: 0 2px 12px #000;
+    }
+    .card-item:not(.is-active) .card-title { opacity: .80; }
+    .title-en { color: #fff; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 600; }
+    .title-fa { color: var(--mint); }
+    .title-separator { color: #ffffff65; font-weight: 400; }
+    .card-inner {
+      display: block; position: relative; aspect-ratio: 4 / 3; overflow: hidden;
+      border-radius: clamp(12px, 1.7vw, 24px); background: #111615;
+      border: 1.5px solid #ffffff35; box-shadow: 0 16px 40px #0009;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .card-image { display: block; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+    .card-item.is-active .card-inner { border: 2px solid var(--mint); box-shadow: 0 0 0 1px #00ffe966, 0 0 20px #00ffe955, 0 0 45px #00ffe92e, 0 20px 45px #0009; }
+    .image-fallback { position: absolute; inset: 0; display: grid; place-content: center; color: #a8bbb7; font-size: 14px; }
+    .bottom-tray { position: absolute; z-index: 20; bottom: max(14px, env(safe-area-inset-bottom)); left: max(16px, env(safe-area-inset-left)); right: max(16px, env(safe-area-inset-right)); text-align: center; }
+    .mode-desc { max-width: 1040px; min-height: 3.6em; margin: 0 auto; font-size: clamp(17px, 1.7vw, 24px); line-height: 1.8; color: #ffffffe0; text-wrap: pretty; }
+    .rotate-hint { display: none; margin: 3px 0 0; color: #ffffff80; font-size: 11px; }
+    .toast { position: absolute; z-index: 40; top: max(18px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); width: max-content; max-width: 85%; margin: 0; padding: 9px 16px; background: #07100feb; border-radius: 10px; text-align: center; font-size: 12px; pointer-events: none; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    @media (orientation: portrait) {
+      .rotate-hint { display: block; }
+      .mode-desc { max-width: 94%; font-size: 18px; min-height: 5.4em; }
+      .bottom-tray { padding-bottom: 10px; }
+      .card-title { font-size: clamp(14px, 4.1vw, 22px); gap: 6px; }
+    }
+    @media (orientation: landscape) and (max-height: 500px) {
+      .screen-container { padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: max(6px, env(safe-area-inset-bottom)); }
+      :root { --title-gap: 16px; }
+      .fullscreen-button { top: max(8px, env(safe-area-inset-top)); font-size: 11px; }
+      .card-title { min-height: 28px; font-size: clamp(15px, 2.15vw, 18px); gap: 7px; }
+      .bottom-tray { bottom: max(6px, env(safe-area-inset-bottom)); }
+      .mode-desc { max-width: 92%; min-height: 3.6em; font-size: 16px; line-height: 1.7; }
+    }
+    @media (orientation: landscape) and (max-height: 300px) {
+      :root { --title-gap: 12px; }
+      .card-title { min-height: 24px; font-size: 14px; gap: 4px; }
+      .mode-desc { min-height: 1.8em; font-size: 15px; }
+    }
+    @media (orientation: landscape) and (max-width: 600px) {
+      .card-title { font-size: 14px; gap: 6px; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before { transition: none !important; } }
+  </style>
+</head>
+<body>
+  <div class="screen-container" id="presentationContainer">
+    <button class="fullscreen-button" id="fullscreenButton" type="button" title="تمام‌صفحه (F)" aria-label="تمام‌صفحه">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M8 21H3v-5"/></svg>
+    </button>
+    <main class="stage-wrapper" id="stageWrapper" tabindex="0" aria-label="منوی حالت‌های پخت" aria-roledescription="گردونه" aria-describedby="menuHelp">
+      <p class="sr-only" id="menuHelp">برای تغییر منو به چپ یا راست بکشید یا از کلیدهای جهت‌نما استفاده کنید. برای خروج از نمایش تمام‌صفحه دو بار روی منو بزنید یا Escape را فشار دهید.</p>
+      <div class="carousel-track" id="carouselTrack"></div>
+    </main>
+    <footer class="bottom-tray">
+      <p class="mode-desc" id="activeDesc" aria-live="polite" aria-atomic="true"></p>
+      <p class="rotate-hint">برای نمایش بهتر، گوشی را افقی بگیرید</p>
+    </footer>
+    <p class="toast" id="toast" role="status" hidden></p>
+    <noscript><p>برای نمایش منو، جاوااسکریپت مرورگر را فعال کنید.</p></noscript>
+  </div>
+  <script>
+    'use strict';
+    const MODES = [
+      {
+        id: 'recipe',
+        filename: 'Recipe Bingo Display.jpg',
+        titleEn: 'Recipe',
+        titleFa: 'دستور پخت',
+        desc: 'مجموعه دستورهای پخت خودکار متناسب با انواع گوشت، پیتزا، کیک و نان با هوش مصنوعی فر.'
+      },
+      {
+        id: 'air-fryer',
+        filename: 'Air Fryer Bingo Display.png',
+        titleEn: 'Air Fryer',
+        titleFa: 'هواپز',
+        desc: 'گردش گردبادی هوای داغ ۳۶۰ درجه برای برشته و ترد کردن سیب‌زمینی و غذاها بدون نیاز به روغن.'
+      },
+      {
+        id: 'steam-cooking',
+        filename: 'Steam Cooking Bingo Display.png',
+        titleEn: 'Steam Cooking',
+        titleFa: 'بخارپز',
+        desc: 'تزریق هوشمند بخار خالص برای حفظ ویتامین‌ها، تازگی بافت و پخت سالم انواع غذاها.'
+      },
+      {
+        id: 'defrost',
+        filename: 'Defrost Bingo Display.jpg',
+        titleEn: 'Defrost',
+        titleFa: 'یخ‌زدایی',
+        desc: 'یخ‌زدایی ملایم و یکنواخت با توزیع تدریجی حرارت بدون تغییر در بافت و آب‌انداختن مواد غذایی.'
+      },
+      {
+        id: 'multi-step-cooking',
+        filename: 'Multi Step Cooking.png',
+        titleEn: 'Multi-Step Cooking',
+        titleFa: 'پخت چند مرحله‌ای',
+        desc: 'برنامه‌ریزی متوالی مراحل مختلف پخت (ترکیب یخ‌زدایی، بخارپز و گریل نهایی به‌صورت هوشمند).'
+      },
+      {
+        id: 'favorite-preset',
+        filename: 'Favorite Preset.png',
+        titleEn: 'Favorite Preset',
+        titleFa: 'تنظیمات مورد علاقه',
+        desc: 'دسترسی سریع و ذخیره‌سازی برنامه‌های پخت اختصاصی و پرکاربرد شما با یک لمس.'
+      },
+      {
+        id: 'manual-cooking',
+        filename: 'Manual Cooking Bingo Display.jpg',
+        titleEn: 'Manual Cooking',
+        titleFa: 'حالت پیشرفته دستی',
+        desc: 'کنترل حرفه‌ای و کامل بر دما، المنت‌های بالا، پایین و سرعت فن کانوکشن.'
+      }
+    ];
+
+    const container = document.getElementById('presentationContainer');
+    const stage = document.getElementById('stageWrapper');
+    const track = document.getElementById('carouselTrack');
+    const description = document.getElementById('activeDesc');
+    const footer = document.querySelector('.bottom-tray');
+    const fullscreenButton = document.getElementById('fullscreenButton');
+    const toast = document.getElementById('toast');
+    const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+    const count = MODES.length;
+    const wrap = value => ((value % count) + count) % count;
+    const distance = (from, to) => wrap(to - from + count / 2) - count / 2;
+    let current = 0, target = 0, activeIndex = -1, frame = 0, previousTime = 0;
+    let stageWidth = 0, cardWidth = 0, drag = null, ignoreClickUntil = 0;
+    let lastTap = null, toastTimer, fullscreenBusy = false;
+    const cards = [];
+
+    MODES.forEach((mode, index) => {
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'card-item';
+      card.dataset.index = index;
+      card.setAttribute('aria-label', `${mode.titleFa} | ${mode.titleEn}`);
+      card.innerHTML = `<span class="card-title"><span class="title-en" lang="en" dir="ltr">${mode.titleEn}</span><span class="title-separator" aria-hidden="true">|</span><span class="title-fa" dir="rtl">${mode.titleFa}</span></span><span class="card-inner"><img class="card-image" src="./${encodeURIComponent(mode.filename)}" alt="" draggable="false" decoding="async"><span class="image-fallback" hidden>تصویر در دسترس نیست</span></span>`;
+      card.querySelector('img').addEventListener('error', event => {
+        event.target.hidden = true;
+        card.querySelector('.image-fallback').hidden = false;
+      });
+      card.addEventListener('click', event => {
+        if (event.detail !== 0 && performance.now() < ignoreClickUntil) return;
+        goTo(index);
+      });
+      track.append(card);
+      cards.push(card);
+    });
+
+    function render() {
+      const selected = wrap(Math.round(current));
+      cards.forEach((card, index) => {
+        const diff = distance(current, index), amount = Math.abs(diff), sign = Math.sign(diff);
+        const spread = Math.min(stageWidth * .245, cardWidth * .72);
+        const x = sign * (Math.min(amount, 1) * spread + Math.max(0, amount - 1) * stageWidth * .095);
+        const scale = Math.max(.65, 1 - amount * .12);
+        card.style.transform = `translate(-50%, -50%) translateX(${x.toFixed(2)}px) rotateY(${-sign * Math.min(amount, 1) * 22}deg) scale(${scale})`;
+        card.style.opacity = Math.max(.2, 1 - amount * .24).toFixed(3);
+        card.style.zIndex = Math.round(100 - amount * 20);
+        card.style.filter = `brightness(${Math.max(.55, 1 - amount * .16)})`;
+        card.classList.toggle('is-active', index === selected);
+        card.tabIndex = index === selected ? 0 : -1;
+        card.setAttribute('aria-pressed', String(index === selected));
+      });
+      if (selected !== activeIndex) {
+        activeIndex = selected;
+        description.textContent = MODES[selected].desc;
+      }
+    }
+    function animate(time) {
+      frame = 0;
+      const elapsed = previousTime ? Math.min(40, time - previousTime) : 16.67;
+      previousTime = time;
+      if (!drag) {
+        current += (target - current) * (1 - Math.exp(-elapsed / 85));
+        if (reducedMotion.matches || Math.abs(target - current) < .001) current = target;
+      }
+      render();
+      if (!drag && current !== target) frame = requestAnimationFrame(animate);
+      else {
+        previousTime = 0;
+        if (!drag) { current = wrap(current); target = current; }
+      }
+    }
+    function requestRender() { if (!frame) frame = requestAnimationFrame(animate); }
+    function goTo(index) {
+      if (drag) return;
+      target = Math.round(target) + distance(wrap(Math.round(target)), index);
+      requestRender();
+    }
+    function step(direction) { if (!drag) { target = Math.round(target) + direction; requestRender(); } }
+    function resize() {
+      stageWidth = stage.clientWidth;
+      const portrait = container.clientHeight > container.clientWidth;
+      const titleHeight = cards[0].querySelector('.card-title').offsetHeight;
+      const stageBounds = stage.getBoundingClientRect();
+      const centerY = stageBounds.top + stageBounds.height / 2;
+      const topInset = parseFloat(getComputedStyle(container).paddingTop);
+      // Keep the image itself centered, reserving space for its title and the footer on both sides.
+      const gap = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--title-gap'));
+      const spaceAbove = stageBounds.height / 2 - topInset - titleHeight - gap - 8;
+      const spaceBelow = footer.getBoundingClientRect().top - centerY - 18;
+      const imageHeight = Math.max(60, Math.min(spaceAbove, spaceBelow) * 2);
+      cardWidth = Math.max(80, Math.min(stageWidth * (portrait ? .84 : .46), imageHeight * 4 / 3, 760));
+      stage.style.setProperty('--card-width', `${cardWidth}px`);
+      requestRender();
+    }
+    const layoutObserver = new ResizeObserver(resize);
+    layoutObserver.observe(stage);
+    layoutObserver.observe(footer);
+    if (document.fonts) document.fonts.ready.then(resize);
+
+    stage.addEventListener('pointerdown', event => {
+      if (drag || !event.isPrimary || event.button !== 0) return;
+      const now = performance.now();
+      drag = { id: event.pointerId, x: event.clientX, y: event.clientY, lastX: event.clientX, time: now, velocity: 0, start: current, moved: false, card: event.target.closest('.card-item') };
+      target = current;
+      stage.setPointerCapture(event.pointerId);
+      stage.classList.add('is-dragging');
+    });
+    stage.addEventListener('pointermove', event => {
+      if (!drag || drag.id !== event.pointerId) return;
+      const now = performance.now(), dx = event.clientX - drag.x;
+      const elapsed = now - drag.time;
+      if (elapsed > 0) drag.velocity = (event.clientX - drag.lastX) / elapsed;
+      drag.lastX = event.clientX; drag.time = now;
+      if (Math.hypot(dx, event.clientY - drag.y) > 7) drag.moved = true;
+      if (drag.moved) {
+        current = drag.start - dx / Math.max(120, cardWidth * .7);
+        target = current; requestRender();
+      }
+    });
+    function endDrag(event, cancelled = false) {
+      if (!drag || drag.id !== event.pointerId) return;
+      const gesture = drag, now = performance.now();
+      drag = null;
+      stage.classList.remove('is-dragging');
+      if (stage.hasPointerCapture(event.pointerId)) stage.releasePointerCapture(event.pointerId);
+      ignoreClickUntil = now + 450;
+      if (cancelled) { target = Math.round(current); lastTap = null; }
+      else if (gesture.moved) {
+        const velocity = now - gesture.time < 100 ? gesture.velocity : 0;
+        target = Math.round(current);
+        if (Math.abs(velocity) > .35) target = Math.round(current - Math.sign(velocity) * .55);
+        lastTap = null;
+      } else {
+        target = Math.round(current);
+        if (lastTap && now - lastTap.time < 320 && Math.hypot(event.clientX - lastTap.x, event.clientY - lastTap.y) < 28) {
+          lastTap = null; toggleFullscreen();
+        } else {
+          lastTap = { time: now, x: event.clientX, y: event.clientY };
+          if (gesture.card) goTo(Number(gesture.card.dataset.index));
+        }
+      }
+      requestRender();
+    }
+    stage.addEventListener('pointerup', event => endDrag(event));
+    stage.addEventListener('pointercancel', event => endDrag(event, true));
+    stage.addEventListener('lostpointercapture', event => endDrag(event, true));
+    window.addEventListener('blur', () => { if (drag) endDrag({ pointerId: drag.id }, true); });
+    stage.addEventListener('dragstart', event => event.preventDefault());
+
+    let wheelLast = 0, wheelSum = 0, wheelStep = -Infinity;
+    stage.addEventListener('wheel', event => {
+      event.preventDefault();
+      if (drag) return;
+      const now = performance.now();
+      const raw = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+      const delta = raw * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? stage.clientHeight : 1);
+      if (now - wheelLast > 150 || Math.sign(delta) !== Math.sign(wheelSum)) wheelSum = 0;
+      wheelLast = now;
+      wheelSum += delta;
+      if (Math.abs(wheelSum) >= 30 && now - wheelStep > 320) { step(Math.sign(wheelSum)); wheelStep = now; wheelSum = 0; }
+    }, { passive: false });
+    window.addEventListener('keydown', event => {
+      if (event.ctrlKey || event.altKey || event.metaKey || /INPUT|TEXTAREA|SELECT/.test(event.target.tagName)) return;
+      if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') { event.preventDefault(); step(event.key === 'ArrowRight' ? 1 : -1); }
+      else if (event.key.toLowerCase() === 'f' && !event.repeat) { event.preventDefault(); toggleFullscreen(); }
+      else if (event.key === 'Escape' && !nativeFullscreen()) leaveImmersive();
+    });
+
+    function nativeFullscreen() { return document.fullscreenElement || document.webkitFullscreenElement; }
+    function showToast(message) {
+      clearTimeout(toastTimer); toast.textContent = message; toast.hidden = false;
+      toastTimer = setTimeout(() => { toast.hidden = true; }, 4200);
+    }
+    function leaveImmersive() {
+      container.classList.remove('is-immersive'); toast.hidden = true;
+      if (screen.orientation && screen.orientation.unlock) { try { screen.orientation.unlock(); } catch {} }
+      resize();
+    }
+    async function toggleFullscreen() {
+      if (fullscreenBusy) return;
+      fullscreenBusy = true;
+      try {
+        if (nativeFullscreen()) {
+          const exit = document.exitFullscreen || document.webkitExitFullscreen;
+          if (exit) await exit.call(document);
+        } else if (container.classList.contains('is-immersive')) leaveImmersive();
+        else {
+          const request = container.requestFullscreen || container.webkitRequestFullscreen;
+          try { if (request) await request.call(container); } catch { /* Use in-page presentation mode when fullscreen is unavailable. */ }
+          container.classList.add('is-immersive');
+          stage.focus({ preventScroll: true });
+          showToast(nativeFullscreen() ? 'برای خروج، دو بار روی منو بزنید' : 'نمایش بدون دکمه فعال شد؛ برای بازگشت دو بار بزنید. تمام‌صفحه در این مرورگر در دسترس نیست.');
+          if (nativeFullscreen() && matchMedia('(pointer: coarse)').matches && screen.orientation && screen.orientation.lock) {
+            try { await screen.orientation.lock('landscape'); } catch { /* The user can rotate the device manually. */ }
+          }
+          resize();
+        }
+      } catch {
+        showToast('مرورگر اجازهٔ تغییر تمام‌صفحه را نداد؛ از دکمهٔ بازگشت مرورگر یا Escape استفاده کنید.');
+      } finally { fullscreenBusy = false; }
+    }
+    function fullscreenChanged() {
+      if (nativeFullscreen()) { container.classList.add('is-immersive'); resize(); }
+      else leaveImmersive();
+    }
+    fullscreenButton.addEventListener('click', toggleFullscreen);
+    document.addEventListener('fullscreenchange', fullscreenChanged);
+    document.addEventListener('webkitfullscreenchange', fullscreenChanged);
+    function readHash() {
+      let hash;
+      try { hash = decodeURIComponent(location.hash.slice(1)).toLowerCase(); } catch { return; }
+      const index = MODES.findIndex(mode => mode.id === hash || mode.titleEn.toLowerCase() === hash);
+      if (index >= 0) { if (drag) endDrag({ pointerId: drag.id }, true); current = target = index; requestRender(); }
+    }
+    window.addEventListener('hashchange', readHash);
+    readHash(); resize(); render();
+  </script>
+</body>
+</html>
