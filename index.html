@@ -4,6 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#070909">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Bingo Display">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Bingo Display | منوی پخت</title>
   <link rel="icon" href="data:,">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -34,7 +38,15 @@
       background: #0a0d0d70; cursor: pointer; font-size: 12px; color: #ffffffe0;
     }
     .fullscreen-button svg { width: 18px; height: 18px; }
-    .screen-container.is-immersive .fullscreen-button { display: none; }
+    .screen-container.is-immersive .fullscreen-button,
+    .screen-container.is-standalone .fullscreen-button { display: none; }
+    .install-help { width: min(440px, calc(100vw - 32px)); max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); margin: auto; padding: 22px; overflow: auto; border: 1px solid #00ffe950; border-radius: 18px; background: #0c1514; color: #fff; font-size: 14px; line-height: 1.8; }
+    .install-help::backdrop { background: #000b; }
+    .install-help h2 { margin: 0 0 10px; font-size: 18px; color: var(--mint); }
+    .install-help p { margin: 0; color: #ffffffc9; }
+    .install-help ol { margin: 12px 0; padding-inline-start: 22px; }
+    .install-help li + li { margin-top: 8px; }
+    .install-help button { display: block; min-height: 44px; width: 100%; margin-top: 14px; border: 1px solid #00ffe950; border-radius: 10px; background: #00ffe912; cursor: pointer; }
     .stage-wrapper {
       position: absolute; inset: 0 max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left)); outline: none;
       touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab;
@@ -120,6 +132,16 @@
       <p class="rotate-hint">برای نمایش بهتر، گوشی را افقی بگیرید</p>
     </footer>
     <p class="toast" id="toast" role="status" hidden></p>
+    <dialog class="install-help" id="installHelp" aria-labelledby="installHelpTitle" aria-describedby="installHelpIntro">
+      <h2 id="installHelpTitle">نمایش بدون نوار مرورگر در آیفون</h2>
+      <p id="installHelpIntro">برای این نمایش، منو را یک بار به صفحهٔ اصلی گوشی اضافه کنید:</p>
+      <ol>
+        <li>این صفحه را در Safari باز کنید و از بخش اشتراک‌گذاری <b dir="ltr">Share</b>، گزینهٔ <b dir="ltr">Add to Home Screen</b> را بزنید.</li>
+        <li>اگر گزینهٔ <b dir="ltr">Open as Web App</b> نمایش داده شد، آن را روشن کنید و <b dir="ltr">Add</b> را بزنید.</li>
+        <li>منو را از آیکون جدید روی صفحهٔ اصلی باز کنید و گوشی را افقی بگیرید.</li>
+      </ol>
+      <form method="dialog"><button type="submit" autofocus>متوجه شدم</button></form>
+    </dialog>
     <noscript><p>برای نمایش منو، جاوااسکریپت مرورگر را فعال کنید.</p></noscript>
   </div>
   <script>
@@ -183,6 +205,9 @@
     const footer = document.querySelector('.bottom-tray');
     const fullscreenButton = document.getElementById('fullscreenButton');
     const toast = document.getElementById('toast');
+    const installHelp = document.getElementById('installHelp');
+    const standaloneDisplay = matchMedia('(display-mode: standalone)');
+    const isAppleMobile = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
     const count = MODES.length;
     const wrap = value => ((value % count) + count) % count;
@@ -343,13 +368,19 @@
       if (Math.abs(wheelSum) >= 30 && now - wheelStep > 320) { step(Math.sign(wheelSum)); wheelStep = now; wheelSum = 0; }
     }, { passive: false });
     window.addEventListener('keydown', event => {
-      if (event.ctrlKey || event.altKey || event.metaKey || /INPUT|TEXTAREA|SELECT/.test(event.target.tagName)) return;
+      if (installHelp.open || event.ctrlKey || event.altKey || event.metaKey || /INPUT|TEXTAREA|SELECT/.test(event.target.tagName)) return;
       if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') { event.preventDefault(); step(event.key === 'ArrowRight' ? 1 : -1); }
       else if (event.key.toLowerCase() === 'f' && !event.repeat) { event.preventDefault(); toggleFullscreen(); }
       else if (event.key === 'Escape' && !nativeFullscreen()) leaveImmersive();
     });
 
     function nativeFullscreen() { return document.fullscreenElement || document.webkitFullscreenElement; }
+    function isStandalone() { return navigator.standalone === true || standaloneDisplay.matches; }
+    function syncStandalone() {
+      container.classList.toggle('is-standalone', isStandalone());
+      if (isStandalone() && installHelp.open) installHelp.close();
+      resize();
+    }
     function showToast(message) {
       clearTimeout(toastTimer); toast.textContent = message; toast.hidden = false;
       toastTimer = setTimeout(() => { toast.hidden = true; }, 4200);
@@ -360,7 +391,7 @@
       resize();
     }
     async function toggleFullscreen() {
-      if (fullscreenBusy) return;
+      if (fullscreenBusy || isStandalone() || installHelp.open) return;
       fullscreenBusy = true;
       try {
         if (nativeFullscreen()) {
@@ -370,6 +401,14 @@
         else {
           const request = container.requestFullscreen || container.webkitRequestFullscreen;
           try { if (request) await request.call(container); } catch { /* Use in-page presentation mode when fullscreen is unavailable. */ }
+          if (!nativeFullscreen() && isAppleMobile) {
+            // iPhone cannot reliably fullscreen an interactive page in a browser tab.
+            // Home Screen launch uses the standalone metadata in this file instead.
+            toast.hidden = true;
+            if (typeof installHelp.showModal === 'function') installHelp.showModal();
+            else showToast('در Safari از Share ← Add to Home Screen استفاده کنید؛ سپس منو را از آیکون صفحهٔ اصلی باز کنید.');
+            return;
+          }
           container.classList.add('is-immersive');
           stage.focus({ preventScroll: true });
           showToast(nativeFullscreen() ? 'برای خروج، دو بار روی منو بزنید' : 'نمایش بدون دکمه فعال شد؛ برای بازگشت دو بار بزنید. تمام‌صفحه در این مرورگر در دسترس نیست.');
@@ -389,6 +428,8 @@
     fullscreenButton.addEventListener('click', toggleFullscreen);
     document.addEventListener('fullscreenchange', fullscreenChanged);
     document.addEventListener('webkitfullscreenchange', fullscreenChanged);
+    standaloneDisplay.addEventListener('change', syncStandalone);
+    window.addEventListener('pageshow', syncStandalone);
     function readHash() {
       let hash;
       try { hash = decodeURIComponent(location.hash.slice(1)).toLowerCase(); } catch { return; }
@@ -396,7 +437,7 @@
       if (index >= 0) { if (drag) endDrag({ pointerId: drag.id }, true); current = target = index; requestRender(); }
     }
     window.addEventListener('hashchange', readHash);
-    readHash(); resize(); render();
+    readHash(); syncStandalone(); render();
   </script>
 </body>
 </html>
