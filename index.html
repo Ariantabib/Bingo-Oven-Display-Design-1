@@ -23,7 +23,7 @@
     [hidden] { display: none !important; }
     .screen-container {
       position: relative; isolation: isolate; width: 100%; height: 100vh; height: 100dvh;
-      overflow: hidden; background: #090908 url('./BackGround.png') center / cover no-repeat;
+      overflow: hidden; background: #090908 center / cover no-repeat;
       display: flex; flex-direction: column;
       padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
     }
@@ -149,49 +149,49 @@
     const MODES = [
       {
         id: 'recipe',
-        filename: 'Recipe Bingo Display.jpg',
+        imageName: 'Recipe Bingo Display',
         titleEn: 'Recipe',
         titleFa: 'دستور پخت',
         desc: 'مجموعه‌ای از دستورهای پخت انواع غذا، شیرینی و نان.'
       },
       {
         id: 'air-fryer',
-        filename: 'Air Fryer Bingo Display.png',
+        imageName: 'Air Fryer Bingo Display',
         titleEn: 'Air Fryer',
         titleFa: 'هواپز',
         desc: 'گردش هوای داغ ۳۶۰ درجه برای برشته و ترد کردن غذاها بدون نیاز به روغن.'
       },
       {
         id: 'steam-cooking',
-        filename: 'Steam Cooking Bingo Display.png',
+        imageName: 'Steam Cooking Bingo Display',
         titleEn: 'Steam Cooking',
         titleFa: 'بخارپز',
         desc: 'پخت غذا با بخار آب برای حفظ طعم و تازگی آن.'
       },
       {
         id: 'defrost',
-        filename: 'Defrost Bingo Display.jpg',
+        imageName: 'Defrost Bingo Display',
         titleEn: 'Defrost',
         titleFa: 'یخ‌زدایی',
         desc: 'یخ‌زدایی ملایم و یکنواخت بدون تغییر در بافت مواد غذایی.'
       },
       {
         id: 'multi-step-cooking',
-        filename: 'Multi Step Cooking.png',
+        imageName: 'Multi Step Cooking',
         titleEn: 'Multi-Step Cooking',
         titleFa: 'پخت چند مرحله‌ای',
         desc: 'برنامه‌ریزی متوالی مراحل مختلف پخت.'
       },
       {
         id: 'favorite-preset',
-        filename: 'Favorite Preset.png',
+        imageName: 'Favorite Preset',
         titleEn: 'Favorite Preset',
         titleFa: 'تنظیمات مورد علاقه',
         desc: 'دسترسی سریع و ذخیره‌سازی برنامه‌های پخت اختصاصی و پرکاربرد شما با یک لمس.'
       },
       {
         id: 'manual-cooking',
-        filename: 'Manual Cooking Bingo Display.jpg',
+        imageName: 'Manual Cooking Bingo Display',
         titleEn: 'Manual Cooking',
         titleFa: 'حالت پیشرفته دستی',
         desc: 'کنترل حرفه‌ای و کامل بر دما، المنت‌های بالا، پایین و سرعت فن کانوکشن.'
@@ -218,15 +218,52 @@
     let descriptionAnimation = null;
     const cards = [];
 
+    const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif', 'gif', 'svg', 'bmp', 'ico'];
+    const imageSuffixes = [...imageExtensions, ...imageExtensions.map(extension => extension.toUpperCase())];
+
+    function loadNamedImage(image, name, onLoad, onMissing) {
+      const baseUrl = `./${encodeURIComponent(name)}`;
+      let nextSuffix = 0;
+
+      function tryNext() {
+        if (nextSuffix === imageSuffixes.length) {
+          stopListening();
+          onMissing();
+          return;
+        }
+        image.src = `${baseUrl}.${imageSuffixes[nextSuffix++]}`;
+      }
+
+      function stopListening() {
+        image.removeEventListener('error', tryNext);
+        image.removeEventListener('load', loaded);
+      }
+
+      function loaded() {
+        stopListening();
+        onLoad();
+      }
+
+      image.addEventListener('error', tryNext);
+      image.addEventListener('load', loaded);
+      tryNext();
+    }
+
+    const background = new Image();
+    loadNamedImage(background, 'BackGround', () => {
+      container.style.backgroundImage = `url("${background.src}")`;
+    }, () => {});
+
     MODES.forEach((mode, index) => {
       const card = document.createElement('button');
       card.type = 'button';
       card.className = 'card-item';
       card.dataset.index = index;
       card.setAttribute('aria-label', `${mode.titleFa} | ${mode.titleEn}`);
-      card.innerHTML = `<span class="card-title"><span class="title-en" lang="en" dir="ltr">${mode.titleEn}</span><span class="title-separator" aria-hidden="true">|</span><span class="title-fa" dir="rtl">${mode.titleFa}</span></span><span class="card-inner"><img class="card-image" src="./${encodeURIComponent(mode.filename)}" alt="" draggable="false" decoding="async"><span class="image-fallback" hidden>تصویر در دسترس نیست</span></span>`;
-      card.querySelector('img').addEventListener('error', event => {
-        event.target.hidden = true;
+      card.innerHTML = `<span class="card-title"><span class="title-en" lang="en" dir="ltr">${mode.titleEn}</span><span class="title-separator" aria-hidden="true">|</span><span class="title-fa" dir="rtl">${mode.titleFa}</span></span><span class="card-inner"><img class="card-image" alt="" draggable="false" decoding="async"><span class="image-fallback" hidden>تصویر در دسترس نیست</span></span>`;
+      const image = card.querySelector('img');
+      loadNamedImage(image, mode.imageName, () => {}, () => {
+        image.hidden = true;
         card.querySelector('.image-fallback').hidden = false;
       });
       card.addEventListener('click', event => {
